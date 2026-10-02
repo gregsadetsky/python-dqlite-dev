@@ -12,9 +12,12 @@ Public surface:
   using the admin methods in ``python-dqlite-client``.
 - :func:`cluster_control` — pytest fixture wrapping
   :class:`TestClusterControl` against the env-configured cluster.
+- :class:`NetworkFaults` / :func:`network_faults` — one-way partitions
+  and dropped replies via tagged iptables rules, removed after the test.
 """
 
 from dqlitetestlib.cluster_control import TestClusterControl
-from dqlitetestlib.fixtures import cluster_control
+from dqlitetestlib.faults import NetworkFaults
+from dqlitetestlib.fixtures import cluster_control, network_faults
 
-__all__ = ["TestClusterControl", "cluster_control"]
+__all__ = ["NetworkFaults", "TestClusterControl", "cluster_control", "network_faults"]

@@ -116,3 +116,14 @@ no exports needed.
   env var (which the in-repo `init-node.sh` only uses for the data
   subdirectory). Tests that need to address a node by id should
   read the live id from `ClusterClient.cluster_info()`.
+
+## Network faults
+
+Tests can partition the cluster or drop replies with
+`dqlitetestlib.NetworkFaults` (see `testlib/README.md`). It works because
+every node shares the host network namespace: a privileged helper
+container (`dqlitetestlib-faults`) adds tagged iptables rules there. Nothing
+in this compose file changes. If a run is interrupted, remove leftover rules
+with `docker exec dqlitetestlib-faults iptables -S INPUT` / `-D`, or simply
+`docker rm -f dqlitetestlib-faults` and restart the cluster.
+

@@ -1,0 +1,59 @@
+name: Integration
+
+# The integration tests of the four packages, all at main, against the 3-node
+# cluster in cluster/. The packages' own CI runs unit tests only
+# (--ignore=tests/integration) and installs siblings from PyPI; here the five
+# repos are checked out side by side, so [tool.uv.sources] links them and
+# scripts/run-tests.sh runs exactly as it does locally.
+
+on:
+  schedule:
+    - cron: "23 5 * * *"  # nightly, 05:23 UTC
+  workflow_dispatch:
+
+jobs:
+  integration:
+    name: Integration (all packages at main)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        path: python-dqlite-dev
+        persist-credentials: false
+    - uses: actions/checkout@v6
+      with:
+        repository: letsdiscodev/python-dqlite-wire
+        path: python-dqlite-wire
+        persist-credentials: false
+    - uses: actions/checkout@v6
+      with:
+        repository: letsdiscodev/python-dqlite-client
+        path: python-dqlite-client
+        persist-credentials: false
+    - uses: actions/checkout@v6
+      with:
+        repository: letsdiscodev/python-dqlite-dbapi
+        path: python-dqlite-dbapi
+        persist-credentials: false
+    - uses: actions/checkout@v6
+      with:
+        repository: letsdiscodev/sqlalchemy-dqlite
+        path: sqlalchemy-dqlite
+        persist-credentials: false
+    - uses: astral-sh/setup-uv@v7
+      with:
+        python-version: "3.13"
+    - name: Install
+      run: |
+        for pkg in python-dqlite-wire python-dqlite-client python-dqlite-dbapi sqlalchemy-dqlite; do
+          (cd "$pkg" && uv sync --extra dev)
+        done
+    - name: Lint, type-check, unit + integration tests
+      run: ./python-dqlite-dev/scripts/run-tests.sh
+    - name: Cluster logs on failure
+      if: failure()
+      run: docker compose -f python-dqlite-dev/cluster/docker-compose.yml logs --tail 200
+    - name: Stop the cluster
+      if: always()
+      run: docker compose -f python-dqlite-dev/cluster/docker-compose.yml down -v

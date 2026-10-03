@@ -42,9 +42,11 @@ def cluster_control() -> TestClusterControl:
 
 @pytest.fixture
 def network_faults() -> Iterator[NetworkFaults]:
-    """Yield :class:`NetworkFaults`; every rule it added is removed afterwards,
-    even if the test failed, and the cluster is left without tagged rules."""
+    """Yield :class:`NetworkFaults` on a cluster without tagged rules, and remove
+    every tagged rule afterwards, even if the test failed. Clearing first too
+    matters: a killed run's rules outlive the helper container and the cluster."""
     faults = NetworkFaults()
+    faults.clear()
     try:
         yield faults
     finally:

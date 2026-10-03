@@ -70,7 +70,10 @@ no extra capabilities and the compose file is unchanged.
 
 Every rule carries the comment `dqlitetestlib-fault`. The context managers
 remove their rules on exit, also when the test raises, and the fixture
-calls `clear()` (remove every tagged rule) after each test.
+calls `clear()` (remove every tagged rule) before and after each test. A run
+killed outright (SIGKILL, a CI timeout) leaves its rules behind, and they
+outlive the helper container and the cluster; the next test using the
+fixture removes them.
 
 ```python
 from dqlitetestlib import NetworkFaults

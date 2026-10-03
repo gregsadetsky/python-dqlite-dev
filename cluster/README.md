@@ -123,7 +123,9 @@ Tests can partition the cluster or drop replies with
 `dqlitetestlib.NetworkFaults` (see `testlib/README.md`). It works because
 every node shares the host network namespace: a privileged helper
 container (`dqlitetestlib-faults`) adds tagged iptables rules there. Nothing
-in this compose file changes. If a run is interrupted, remove leftover rules
-with `docker exec dqlitetestlib-faults iptables -S INPUT` / `-D`, or simply
-`docker rm -f dqlitetestlib-faults` and restart the cluster.
+in this compose file changes. The rules live in the docker host's network
+namespace, so a killed run's rules survive removing the helper container and
+restarting the cluster. The `network_faults` fixture clears them before and
+after each test; by hand, `python -c "from dqlitetestlib import NetworkFaults;
+print(NetworkFaults().clear())"` removes them all.
 

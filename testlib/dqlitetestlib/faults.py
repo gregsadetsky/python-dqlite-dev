@@ -80,6 +80,17 @@ class NetworkFaults:
     def _undrop(self, rule: list[str]) -> None:
         self._iptables("-D", *rule)
 
+    def _undrop_all(self, rules: list[list[str]]) -> None:
+        """Remove each rule, still trying the others if one removal fails."""
+        failed: BaseException | None = None
+        for rule in reversed(rules):
+            try:
+                self._undrop(rule)
+            except BaseException as exc:
+                failed = failed or exc
+        if failed is not None:
+            raise failed
+
     def _pids(self, n: int) -> set[int]:
         lines = _docker("top", f"dqlite-node{n}", "-eo", "pid").splitlines()[1:]
         return {int(line.strip()) for line in lines if line.strip()}
@@ -119,8 +130,7 @@ class NetworkFaults:
                 rules.append(self._drop(sport, leader_port))
             yield ports
         finally:
-            for rule in reversed(rules):
-                self._undrop(rule)
+            self._undrop_all(rules)
 
     @contextlib.contextmanager
     def drop_replies(self, server_port: int, client_port: int) -> Iterator[None]:

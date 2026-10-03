@@ -51,13 +51,46 @@ async def test_pool_recovers_after_leader_flip(
     # ... assert the pool re-routes to the new leader ...
 ```
 
+## Network faults
+
+`network_faults` (fixture) / `NetworkFaults` add iptables rules to the
+cluster's network namespace (the nodes use `network_mode: host`, so it is
+the docker host's) from a privileged helper container,
+`dqlitetestlib-faults` (`alpine:3.20` with `iptables` and `iproute2`
+installed on first use; needs network access to pull it). The nodes need
+no extra capabilities and the compose file is unchanged.
+
+- `isolate_from_followers(leader_port)`: one-way partition. The followers'
+  connections to the leader are dropped, so the leader cannot hear their
+  acknowledgements, cannot commit, and steps down; the followers elect a
+  new leader (about 10 s on this cluster).
+- `drop_replies(server_port, client_port)`: the server still receives and
+  executes requests on that one client connection, but the replies are
+  dropped, so the client times out on a write that was applied.
+
+Every rule carries the comment `dqlitetestlib-fault`. The context managers
+remove their rules on exit, also when the test raises, and the fixture
+calls `clear()` (remove every tagged rule) before and after each test. A run
+killed outright (SIGKILL, a CI timeout) leaves its rules behind, and they
+outlive the helper container and the cluster; the next test using the
+fixture removes them.
+
+```python
+from dqlitetestlib import NetworkFaults
+
+async def test_commit_reply_lost(network_faults: NetworkFaults) -> None:
+    with network_faults.drop_replies(server_port, client_port):
+        ...  # the request runs on the server, the reply never arrives
+```
+
 ## Layout
 
 ```
 testlib/
 └── dqlitetestlib/
-    ├── __init__.py        # re-exports TestClusterControl + cluster_control
+    ├── __init__.py        # re-exports TestClusterControl, NetworkFaults + fixtures
     ├── cluster_control.py # the class itself
+    ├── faults.py          # NetworkFaults: partitions, dropped replies
     └── fixtures.py        # pytest fixtures
 ```
 

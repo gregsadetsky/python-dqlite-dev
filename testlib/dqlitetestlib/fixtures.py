@@ -8,10 +8,12 @@ documented in ``python-dqlite-dev/testlib/README.md``).
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 
 import pytest
 
 from dqlitetestlib.cluster_control import TestClusterControl
+from dqlitetestlib.faults import NetworkFaults
 
 
 def _addresses_from_env() -> list[str]:
@@ -36,3 +38,16 @@ def cluster_control() -> TestClusterControl:
     teardown — this fixture does not snapshot or revert state.
     """
     return TestClusterControl(_addresses_from_env())
+
+
+@pytest.fixture
+def network_faults() -> Iterator[NetworkFaults]:
+    """Yield :class:`NetworkFaults` on a cluster without tagged rules, and remove
+    every tagged rule afterwards, even if the test failed. Clearing first too
+    matters: a killed run's rules outlive the helper container and the cluster."""
+    faults = NetworkFaults()
+    faults.clear()
+    try:
+        yield faults
+    finally:
+        faults.clear()
